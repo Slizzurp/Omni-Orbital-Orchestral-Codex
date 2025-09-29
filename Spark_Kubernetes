@@ -1,0 +1,10 @@
+# infra/spark/k8s-submitter.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: spark }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: spark-rolebinding }
+subjects: [{ kind: ServiceAccount, name: spark, namespace: default }]
+roleRef: { kind: ClusterRole, name: edit, apiGroup: rbac.authorization.k8s.io }

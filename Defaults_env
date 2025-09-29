@@ -1,0 +1,9 @@
+# infra/spark/spark-defaults.conf
+spark.master                      k8s://https://kubernetes.default.svc
+spark.kubernetes.container.image  ghcr.io/s3oc/spark:3.5.1
+spark.kubernetes.authenticate.driver.serviceAccountName spark
+spark.dynamicAllocation.enabled   true
+spark.shuffle.service.enabled     false
+spark.sql.streaming.forceDeleteTempCheckpointLocation true
+spark.sql.extensions              io.delta.sql.DeltaSparkSessionExtension
+spark.sql.catalog.spark_catalog   org.apache.spark.sql.delta.catalog.DeltaCatalog

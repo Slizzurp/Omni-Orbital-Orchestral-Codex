@@ -1,0 +1,120 @@
+score:
+  name: S3OC.constellation-sync.v1
+  mode: ceremonial_stress_test
+  budgets:
+    max_latency_ms: 30000
+    max_cost: ultra
+    fanout: max
+  guarantees:
+    provenance_required: true
+    schema_conformance: 0.995
+    atlas_refresh: true
+
+  stages:
+
+    # Movement I — Rising Chord
+    - id: red_baton
+      glyph: RedBaton
+      section: conductor
+      task: "Initiate ultra-tier budgets, open all high-priority channels"
+      actions:
+        - type: spark_submit
+          job: pipelines/spark/streaming/telemetry_ingest.py
+          conf:
+            executor.instances: 8
+            checkpointLocation: s3://codex/ckpt/bronze/telemetry
+            outputPath: s3://codex/data/bronze/telemetry
+      outputs: [event_context, section_budgets, channel_map]
+
+    - id: collision_spiral
+      glyph: CollisionSpiral
+      section: harps
+      task: "Ingest orbital hazard vectors, normalize units, link to historical tracks"
+      actions:
+        - type: spark_submit
+          job: pipelines/spark/batch/hazard_model.py
+          conf:
+            executor.instances: 6
+            inputPath: s3://codex/data/silver/telemetry
+            outputPath: s3://codex/data/gold/hazard_models
+      outputs: [collision_map, delta_v_thresholds]
+
+    # Movement II — Harmonic Window
+    - id: burn_window
+      glyph: BurnWindow
+      section: strings
+      task: "Calculate optimal maneuver windows, generate synthetic datasets"
+      actions:
+        - type: spark_submit
+          job: pipelines/spark/batch/burn_window_calc.py
+          conf:
+            executor.instances: 4
+            inputPath: s3://codex/data/silver/telemetry
+            outputPath: s3://codex/data/gold/burn_windows
+      outputs: [burn_plan, execution_timer]
+
+    - id: relay_shift
+      glyph: RelayShift
+      section: brass
+      task: "Switch comms to alternate relay paths, log link health"
+      actions:
+        - type: spark_submit
+          job: pipelines/spark/streaming/link_health.py
+          conf:
+            executor.instances: 3
+            checkpointLocation: s3://codex/ckpt/silver/link_health
+            outputPath: s3://codex/data/silver/link_health
+      outputs: [relay_manifest, link_status]
+
+    # Movement III — Cooling Veil
+    - id: thermal_veil
+      glyph: ThermalVeil
+      section: harps
+      task: "Forecast post-burn thermal loads, validate safe margins"
+      actions:
+        - type: spark_submit
+          job: pipelines/spark/batch/thermal_forecast.py
+          conf:
+            executor.instances: 4
+            inputPath: s3://codex/data/silver/telemetry
+            outputPath: s3://codex/data/gold/thermal_forecasts
+      outputs: [thermal_chart, radiator_log]
+
+    # Movement IV — Convergence
+    - id: finale
+      glyph: FinaleDebrisDance
+      section: conductor
+      task: "Archive all outputs, mint ceremonial seal, update lineage"
+      actions:
+        - type: spark_submit
+          job: pipelines/spark/batch/curate_evidence.py
+          conf:
+            executor.instances: 6
+            inputPath: s3://codex/data/silver
+            outputPath: s3://codex/data/gold/evidence_packs
+        - type: spark_sql
+          query: "OPTIMIZE delta.`s3://codex/data/gold` ZORDER BY (subject_id, timestamp)"
+      outputs: [archived_package, lineage_entry]
+
+    # Parallel Phase — All glyphs at once
+    - id: parallel_phase
+      glyphs: [RedBaton, CollisionSpiral, BurnWindow, RelayShift, ThermalVeil]
+      section: all
+      task: "Run all glyph-bound jobs in parallel for 10 minutes"
+      actions:
+        - type: spark_submit
+          job: pipelines/spark/streaming/telemetry_ingest.py
+          conf: { executor.instances: 10 }
+        - type: spark_submit
+          job: pipelines/spark/batch/hazard_model.py
+          conf: { executor.instances: 8 }
+        - type: spark_submit
+          job: pipelines/spark/batch/burn_window_calc.py
+          conf: { executor.instances: 6 }
+        - type: spark_submit
+          job: pipelines/spark/streaming/link_health.py
+          conf: { executor.instances: 4 }
+        - type: spark_submit
+          job: pipelines/spark/batch/thermal_forecast.py
+          conf: { executor.instances: 6 }
+      outputs: [parallel_metrics, atlas_refresh_status]

@@ -1,0 +1,4 @@
+data/
+├─ bronze/{domain}/dt=YYYY-MM-DD/
+├─ silver/{domain}/dt=YYYY-MM-DD/
+└─ gold/{mart}/version=V/
